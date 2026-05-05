@@ -78,12 +78,17 @@ const items = [
     image_url: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=400&h=300&fit=crop'
   }
 ];
-
-const insert = db.prepare('INSERT INTO menu_items (name, price, description, image_url) VALUES (?, ?, ?, ?)');
-
-for (const item of items) {
-  insert.run(item.name, item.price, item.description, item.image_url);
-  console.log(`Added: ${item.name}`);
+async function seed() {
+  // Clear existing items
+  await query('DELETE FROM menu_items');
+  for (const item of items) {
+    await query(
+      'INSERT INTO menu_items (name, price, description, image_url) VALUES ($1, $2, $3, $4)',
+      [item.name, item.price, item.description, item.image_url]
+    );
+    console.log(`Added: ${item.name}`);
+  }
+  console.log('✅ Menu seeded');
 }
 
-console.log(`✅ Added ${items.length} menu items with images.`);
+seed().catch(console.error);

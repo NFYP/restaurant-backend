@@ -1,57 +1,64 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const { Pool } = require('pg');
 
-const db = new Database(path.join(__dirname, 'restaurant.db'));
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://your_local_user@localhost/restaurant',
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
 
-// Create menu_items table
-db.exec(`
-  CREATE TABLE IF NOT EXISTS menu_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    price REAL NOT NULL,
-    description TEXT,
-    is_available INTEGER DEFAULT 1
-  )
-`);
+async function query(text, params) {
+  const start = Date.now();
+  const res = await pool.query(text, params);
+  const duration = Date.now() - start;
+  console.log('executed query', { text, duration, rows: res.rowCount });
+  return res;
+}
 
-// Create users table
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    full_name TEXT NOT NULL,
-    phone TEXT,
-    role TEXT DEFAULT 'customer',
-    loyalty_points INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+// Create tables if they don't exist
+async function initTables() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS menu_items (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      price DECIMAL(10,2) NOT NULL,
+      description TEXT,
+      image_url TEXT,
+      is_available INT DEFAULT 1
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      full_name TEXT NOT NULL,
+      phone TEXT,
+      role TEXT DEFAULT 'customer',
+      loyalty_points INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS orders (
+      id SERIAL PRIMARY KEY,
+      user_id INT REFERENCES users(id),
+      total_price DECIMAL(10,2) NOT NULL,
+      status TEXT DEFAULT 'pending',
+      delivery_address TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS order_items (
+      id SERIAL PRIMARY KEY,
+      order_id INT REFERENCES orders(id),
+      menu_item_id INT REFERENCES menu_items(id),
+      quantity INT NOT NULL,
+      price_at_time DECIMAL(10,2) NOT NULL
+    )
+  `);
+  console.log('✅ PostgreSQL tables ready');
+}
 
-// Create orders table with user_id (NOT customer_name)
-db.exec(`
-  CREATE TABLE IF NOT EXISTS orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    total_price REAL NOT NULL,
-    status TEXT DEFAULT 'pending',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  )
-`);
+initTables().catch(console.error);
 
-// Create order_items table
-db.exec(`
-  CREATE TABLE IF NOT EXISTS order_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id INTEGER NOT NULL,
-    menu_item_id INTEGER NOT NULL,
-    quantity INTEGER NOT NULL,
-    price_at_time REAL NOT NULL,
-    FOREIGN KEY (order_id) REFERENCES orders(id),
-    FOREIGN KEY (menu_item_id) REFERENCES menu_items(id)
-  )
-`);
-
-console.log('✅ Database tables created successfully');
-module.exports = db;
+module.exports = query;
