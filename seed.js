@@ -1,8 +1,4 @@
-const db = require('./database');
-
-// Delete all existing menu items (clean slate)
-db.prepare('DELETE FROM menu_items').run();
-console.log('Cleared old menu items.');
+const query = require('./database');
 
 const items = [
   {
@@ -78,17 +74,27 @@ const items = [
     image_url: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=400&h=300&fit=crop'
   }
 ];
+
 async function seed() {
-  // Clear existing items
-  await query('DELETE FROM menu_items');
-  for (const item of items) {
-    await query(
-      'INSERT INTO menu_items (name, price, description, image_url) VALUES ($1, $2, $3, $4)',
-      [item.name, item.price, item.description, item.image_url]
-    );
-    console.log(`Added: ${item.name}`);
+  try {
+    // Clear existing menu items
+    await query('DELETE FROM menu_items');
+    console.log('Cleared old menu items.');
+
+    // Insert new items
+    for (const item of items) {
+      await query(
+        'INSERT INTO menu_items (name, price, description, image_url) VALUES ($1, $2, $3, $4)',
+        [item.name, item.price, item.description, item.image_url]
+      );
+      console.log(`Added: ${item.name}`);
+    }
+    console.log(`✅ Added ${items.length} menu items with images.`);
+  } catch (err) {
+    console.error('Seeding error:', err);
+  } finally {
+    process.exit();
   }
-  console.log('✅ Menu seeded');
 }
 
-seed().catch(console.error);
+seed();

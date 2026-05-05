@@ -1,20 +1,28 @@
+require('dotenv').config();
 const { Pool } = require('pg');
 
+console.log('DATABASE_URL exists?', !!process.env.DATABASE_URL);
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://your_local_user@localhost/restaurant',
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false      
+  },
+  family: 4                         
 });
 
-async function query(text, params) {
-  const start = Date.now();
-  const res = await pool.query(text, params);
-  const duration = Date.now() - start;
-  console.log('executed query', { text, duration, rows: res.rowCount });
-  return res;
+async function query(sql, params) {
+  const client = await pool.connect();
+  try {
+    const res = await client.query(sql, params);
+    return res;
+  } finally {
+    client.release();
+  }
 }
 
-// Create tables if they don't exist
-async function initTables() {
+const createTables = async () => {
+  console.log('Checking/Creating tables in Supabase...');
   await query(`
     CREATE TABLE IF NOT EXISTS menu_items (
       id SERIAL PRIMARY KEY,
@@ -56,9 +64,9 @@ async function initTables() {
       price_at_time DECIMAL(10,2) NOT NULL
     )
   `);
-  console.log('✅ PostgreSQL tables ready');
-}
+  console.log('✅ Supabase tables are ready');
+};
 
-initTables().catch(console.error);
+createTables().catch(console.error);
 
 module.exports = query;
