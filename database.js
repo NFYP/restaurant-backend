@@ -1,28 +1,23 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-console.log('DATABASE_URL exists?', !!process.env.DATABASE_URL);
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false      
-  },
-  family: 4                         
+  ssl: { rejectUnauthorized: false },
+  family: 4
 });
 
 async function query(sql, params) {
   const client = await pool.connect();
   try {
-    const res = await client.query(sql, params);
-    return res;
+    return await client.query(sql, params);
   } finally {
     client.release();
   }
 }
 
-const createTables = async () => {
-  console.log('Checking/Creating tables in Supabase...');
+async function initTables() {
+  console.log('Creating tables if not exist...');
   await query(`
     CREATE TABLE IF NOT EXISTS menu_items (
       id SERIAL PRIMARY KEY,
@@ -64,9 +59,9 @@ const createTables = async () => {
       price_at_time DECIMAL(10,2) NOT NULL
     )
   `);
-  console.log('✅ Supabase tables are ready');
-};
+  console.log('Tables ready');
+}
 
-createTables().catch(console.error);
+initTables().catch(console.error);
 
 module.exports = query;
