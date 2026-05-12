@@ -12,7 +12,7 @@ function verifyPassword(password, hash) {
 }
 
 function generateToken(user) {
-  return jwt.sign({ id: user.id, email: user.email, role: user.role }, SECRET, { expiresIn: '7d' });
+  return jwt.sign({ id: user.id, full_name: user.full_name, email: user.email, role: user.role }, SECRET, { expiresIn: '7d' });
 }
 
 function verifyToken(req, res, next) {
