@@ -176,5 +176,22 @@ app.get('/owner/sales', verifyToken, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
+// Temporary route to create owner account (remove after use)
+app.get('/create-owner', async (req, res) => {
+    const { hashPassword } = require('./auth');
+    try {
+        const email = 'owner@restaurant.com';
+        const password = 'owner123';
+        const full_name = 'Restaurant Owner';
+        const existing = await require('./database')('SELECT id FROM users WHERE email = $1', [email]);
+        if (existing.rows.length) {
+            return res.send('Owner already exists.');
+        }
+        const hashed = hashPassword(password);
+        await require('./database')('INSERT INTO users (email, password, full_name, role) VALUES ($1, $2, $3, $4)', [email, hashed, full_name, 'owner']);
+        res.send('Owner account created. Login with: owner@restaurant.com / owner123');
+    } catch (err) {
+        res.status(500).send('Error: ' + err.message);
+    }
+});
 app.listen(port, () => console.log(`Server running on port ${port}`));
